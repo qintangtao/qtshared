@@ -1,0 +1,2 @@
+# qtshared
+qt shared
