@@ -1,0 +1,31 @@
+#ifndef SPRINGGLOBAL_H
+#define SPRINGGLOBAL_H
+#include <QObject>
+
+#define SPRING_STR_(x)      #x
+#define SPRING_STR(x)       SPRING_STR_(x)
+
+#define SPRING_CONS_(x, y) x##y
+#define SPRING_CONS(x, y)  SPRING_CONS_(x, y)
+
+#define SPRING_PROPERTY_NAME_PREFIX                 springAutowired_
+#define SPRING_PROPERTY_NAME_PREFIX_STR          SPRING_STR(SPRING_PROPERTY_NAME_PREFIX)
+
+#define SPRING_PROPERTY(type, name, ...) \
+    Q_PROPERTY(type SPRING_CONS(SPRING_PROPERTY_NAME_PREFIX, name) __VA_ARGS__)
+
+#define SPRING_SETMETHOD(CLASSNAME, PROPERTYNAME, SETNAME) \
+    inline void SETNAME(CLASSNAME v) {PROPERTYNAME = v;}
+
+#define SPRING_GETMETHOD(CLASSNAME, PROPERTYNAME, GETNAME) \
+    inline CLASSNAME  GETNAME() const { return PROPERTYNAME; }
+
+#define SPRING_METHOD(CLASSNAME, PROPERTYNAME, SETNAME, GETNAME) \
+    SPRING_SETMETHOD(CLASSNAME, PROPERTYNAME, SETNAME) \
+    SPRING_GETMETHOD(CLASSNAME, PROPERTYNAME, GETNAME)
+
+#define SPRING_GET(name) Spring::get(name);
+#define SPRING_GET_OBJECT(T) Spring::get<T>();
+#define SPRING_GET_OBJECTNAME(T, name) Spring::get<T>(name);
+
+#endif // SPRINGGLOBAL_H
