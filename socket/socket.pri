@@ -1,0 +1,2 @@
+
+include($$PWD/tcpsocket.pri)
