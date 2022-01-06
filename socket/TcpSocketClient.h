@@ -63,6 +63,16 @@ public:
     { return m_heartbeatCmd; }
 
     /**
+     * 内部创建链接检测是否可连
+     * @brief setHeartbeatDoubleLink
+     * @param v
+     */
+    inline void setHeartbeatDoubleLink(bool b)
+    { m_bHeartbeatDoubleLink = b; }
+    inline const bool &heartbeatDoubleLink() const
+    { return m_bHeartbeatDoubleLink; }
+
+    /**
      * 收到心跳回送命令后，清除心跳计数器
      * @brief clearHeartbeatTimes
      */
@@ -73,6 +83,7 @@ Q_SIGNALS:
 
 private Q_SLOTS:
     void onHeartbeatTimeout();
+    void onHeartbeatStateChanged(QAbstractSocket::SocketState);
 
 private:
     QString m_ip;
@@ -90,6 +101,14 @@ private:
     int m_nHeartbeatTimeout;
     //心跳命令
     QString m_heartbeatCmd;
+    //内部创建链接检测是否可连
+    bool m_bHeartbeatDoubleLink;
+
+    // 内部心跳检测
+    TcpSocketClient *m_pTcpSocketClient;
+
+private:
+    Q_DISABLE_COPY(TcpSocketClient)
 };
 
 

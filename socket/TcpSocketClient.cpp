@@ -14,7 +14,9 @@ TcpSocketClient::TcpSocketClient(QObject *parent) :
     m_bHeartbeatEnabled(true),
     m_nHeartbeatTimes(0),
     m_nHeartbeatSend(5),
-    m_nHeartbeatTimeout(5)
+    m_nHeartbeatTimeout(5),
+    m_bHeartbeatDoubleLink(false),
+    m_pTcpSocketClient(NULL)
 {
     m_timer.setInterval(1000);
     connect(&m_timer, SIGNAL(timeout()), this, SLOT(onHeartbeatTimeout()));
@@ -23,6 +25,9 @@ TcpSocketClient::TcpSocketClient(QObject *parent) :
 TcpSocketClient::~TcpSocketClient()
 {
 	disconnectFromServer();
+
+    if (m_pTcpSocketClient)
+        m_pTcpSocketClient->disconnectFromServer();
 }
 
 void TcpSocketClient::setIPAndPort(const QString &ip, quint16 port, bool connect)
@@ -46,13 +51,25 @@ void TcpSocketClient::connectToServer(int msecs, OpenMode mode)
     }
 
     if (m_bHeartbeatEnabled) {
-        if (!m_heartbeatCmd.isEmpty()) {
+        if (m_bHeartbeatDoubleLink) {
+            if (NULL == m_pTcpSocketClient) {
+                m_pTcpSocketClient = new TcpSocketClient(this);
+                m_pTcpSocketClient->setHeartbeatEnabled(false);
+                connect(m_pTcpSocketClient, SIGNAL(stateChanged(QAbstractSocket::SocketState)), this, SLOT(onHeartbeatStateChanged(QAbstractSocket::SocketState)));
+            }
             if (!m_timer.isActive()) {
-                qCDebug(logTcp) << m_ip << m_port << isConnected() << m_heartbeatCmd << "start heartbeat";
+                qCDebug(logTcp) << m_ip << m_port << isConnected() << m_bHeartbeatDoubleLink << "start heartbeat";
                 m_timer.start();
             }
         } else {
-            qCWarning(logTcp) << m_ip << m_port << isConnected() << "heartbeat cmd \"" << m_heartbeatCmd << "\" is empty";
+            if (!m_heartbeatCmd.isEmpty()) {
+                if (!m_timer.isActive()) {
+                    qCDebug(logTcp) << m_ip << m_port << isConnected() << m_heartbeatCmd << "start heartbeat";
+                    m_timer.start();
+                }
+            } else {
+                qCWarning(logTcp) << m_ip << m_port << isConnected() << "heartbeat cmd \"" << m_heartbeatCmd << "\" is empty";
+            }
         }
     }
 }
@@ -64,9 +81,12 @@ void TcpSocketClient::disconnectFromServer(int msecs)
 
     //m_bHeartbeatEnabled &&   不加此判断，防止中途设置为false
     if (m_timer.isActive()) {
-        qCDebug(logTcp) << m_ip << m_port << isConnected() << m_heartbeatCmd << "stop heartbeat";
+        qCDebug(logTcp) << m_ip << m_port << isConnected() << m_bHeartbeatDoubleLink << m_heartbeatCmd  << "stop heartbeat";
         m_timer.stop();
     }
+
+    if (m_pTcpSocketClient)
+        m_pTcpSocketClient->disconnectFromServer();
 
     QTcpSocket::disconnectFromHost();
     if(msecs > 0)
@@ -116,7 +136,11 @@ void TcpSocketClient::onHeartbeatTimeout()
     if (m_nHeartbeatTimes++ < m_nHeartbeatSend)
         return;
 
-    send(m_heartbeatCmd.toLocal8Bit());
+    if (m_bHeartbeatDoubleLink) {
+        m_pTcpSocketClient->setIPAndPort(m_ip, m_port);
+    } else {
+        send(m_heartbeatCmd.toLocal8Bit());
+    }
 
     if (m_nHeartbeatTimes > (m_nHeartbeatSend +m_nHeartbeatTimeout ))
     {
@@ -129,5 +153,19 @@ void TcpSocketClient::onHeartbeatTimeout()
         m_nHeartbeatTimes = m_nHeartbeatSend - 1;
         disconnectFromServer();
         connectToServer();
+    }
+}
+
+void TcpSocketClient::onHeartbeatStateChanged(QAbstractSocket::SocketState state)
+{
+    qCDebug(logTcp) << state;
+    if (state == QAbstractSocket::ConnectedState) {
+        m_nHeartbeatTimes = 0;
+
+        // 主链接已断开，此时心跳链接已连接上，需要连接主
+        if (this->state() != QAbstractSocket::ConnectedState) {
+            disconnectFromServer();
+            connectToServer();
+        }
     }
 }
