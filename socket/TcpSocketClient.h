@@ -13,9 +13,11 @@ public:
     void setIPAndPort(const QString &ip, quint16 port, bool connect = true);
     void connectToServer(int msecs = 50, OpenMode mode = ReadWrite);
     void disconnectFromServer(int msecs = 50);
-    bool isConnected();
     bool waitConnected(int msecs = 3000);
     qint64 send(const QByteArray &data);
+
+    inline bool isConnected() const
+    { return state() == QAbstractSocket::ConnectedState; }
 
     inline QString ip() const
     { return m_ip; }
@@ -86,6 +88,10 @@ private Q_SLOTS:
     void onHeartbeatStateChanged(QAbstractSocket::SocketState);
 
 private:
+    void startHeartbeat();
+    void stopHeartbeat();
+
+private:
     QString m_ip;
     quint16 m_port;
 
@@ -97,6 +103,8 @@ private:
     int m_nHeartbeatTimes;
     //每隔几秒发送一次心跳命令
     int m_nHeartbeatSend;
+    //断开后重连后多久再次发送心跳命令
+    int m_nHeartbeatResend;
     //从发送命令起，超时几秒重连
     int m_nHeartbeatTimeout;
     //心跳命令
