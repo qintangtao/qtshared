@@ -2,23 +2,21 @@
 #include <QSettings>
 #include <QTextCodec>
 #include <QDebug>
+#include <QFontDatabase>
 #include "log4qt/propertyconfigurator.h"
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 2, 0)
 Q_LOGGING_CATEGORY(logApp, "log.app")
-#else
-#define qCDebug(X)  qDebug() << #X
-#define qCWarning(X)  qCWarning() << #X
-#endif
 
 MyApplication::MyApplication(int &argc, char **argv) :
     QApplication(argc, argv)
 {
     initTextCodec();
 
-#ifdef ENABLED_LOG4QT_INIT
+#ifndef DISABLE_LOG4QT_INIT
     initLog4qt();
 #endif
+
+    loadFont();
 }
 
 MyApplication::~MyApplication()
@@ -51,7 +49,7 @@ void MyApplication::initLog4qt()
 #ifdef QT_NO_DEBUG
         QSettings s("qtlogging.ini" , QSettings::IniFormat);
 #else
-        QSettings s("F:\\work\\kang\\KangView-control\\bin\\qtlogging.ini" , QSettings::IniFormat);
+        QSettings s("qtlogging.ini" , QSettings::IniFormat);
 #endif
         s.setIniCodec(QTextCodec::codecForName("utf-8"));
         s.beginGroup("settings");
@@ -59,6 +57,33 @@ void MyApplication::initLog4qt()
         s.endGroup();
 #endif
 }
+
+void MyApplication::loadFont()
+{
+    //load font
+    int index = QFontDatabase::addApplicationFont("msyh.ttf");
+    if (-1 == index) {
+        qCWarning(logApp) << "addApplicationFont" << index;
+        return;
+    }
+
+    qCDebug(logApp) << index;
+
+    QStringList fontList(QFontDatabase::applicationFontFamilies(index));
+    if (fontList.isEmpty()) {
+        qCWarning(logApp) << "fontList is empty" << index;
+        return;
+    }
+
+    foreach(QString font, fontList) {
+        qCDebug(logApp) << font;
+    }
+
+    QFont font_zh(fontList.at(0));
+    font_zh.setBold(false);
+    this->setFont(font_zh);
+}
+
 
 bool MyApplication::event(QEvent *e)
 {

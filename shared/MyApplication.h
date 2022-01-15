@@ -19,6 +19,7 @@ public:
 protected:
     void initTextCodec();
     void initLog4qt();
+    void loadFont();
 
     bool event(QEvent *) override;
 
