@@ -17,11 +17,12 @@ TTBaseWidget::~TTBaseWidget()
 
 void TTBaseWidget::showEvent(QShowEvent *event)
 {
+    QWidget::showEvent(event);
+
     if (!m_bLazyLoading) {
         m_bLazyLoading = true;
         lazyLoading();
     }
-    QWidget::showEvent(event);
 }
 
 void TTBaseWidget::lazyLoading()
