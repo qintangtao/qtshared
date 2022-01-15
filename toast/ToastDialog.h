@@ -27,6 +27,9 @@ protected:
 
 protected:
     QLabel *m_pLabel;
+
+private:
+    Q_DISABLE_COPY(ToastDialog)
 };
 
 #endif // ToastDialog_H
