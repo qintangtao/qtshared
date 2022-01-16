@@ -7,6 +7,7 @@
 
 #include <QLabel>
 #include <QThread>
+#include <QTimer>
 
 class VideoPlayer: public QThread
 {
@@ -36,13 +37,28 @@ public:
     explicit BCDecoderPlayer(QWidget *parent = 0);
     ~BCDecoderPlayer();
 
+    inline void setTimeout(int msec)
+    { m_timer.setInterval(msec); }
+    inline void setDefaultPixmap(const QPixmap &pix)
+    { m_defaultPixmap = pix; }
+    inline void setLoadTip(const QString &text)
+    { m_loadTip = text; }
+    inline void setLoadTimeoutTip(const QString &text)
+    { m_loadTimeoutTip = text; }
+
 public slots:
     void SetImageSlots(QImage);
     void play(QString url);
     void stop();
+    void onTimeout();
 
 private:
     VideoPlayer *m_VideoPlayer;
+
+    QTimer m_timer;
+    QPixmap m_defaultPixmap;
+    QString m_loadTip;
+    QString m_loadTimeoutTip;
 };
 
 
