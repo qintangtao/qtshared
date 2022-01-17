@@ -59,9 +59,9 @@ public:
      * @brief setHeartbeatCmd
      * @param v
      */
-    inline void setHeartbeatCmd(const QString &v)
+    inline void setHeartbeatCmd(const QByteArray &v)
     { m_heartbeatCmd = v; }
-    inline const QString &heartbeatCmd() const
+    inline const QByteArray &heartbeatCmd() const
     { return m_heartbeatCmd; }
 
     /**
@@ -108,7 +108,7 @@ private:
     //从发送命令起，超时几秒重连
     int m_nHeartbeatTimeout;
     //心跳命令
-    QString m_heartbeatCmd;
+    QByteArray m_heartbeatCmd;
     //内部创建链接检测是否可连
     bool m_bHeartbeatDoubleLink;
 

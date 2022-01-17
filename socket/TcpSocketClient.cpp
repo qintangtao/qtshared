@@ -112,7 +112,7 @@ void TcpSocketClient::onHeartbeatTimeout()
     if (m_bHeartbeatDoubleLink) {
         m_pTcpSocketClient->setIPAndPort(m_ip, m_port);
     } else {
-        send(m_heartbeatCmd.toLocal8Bit());
+        send(m_heartbeatCmd);
     }
 
     if (m_nHeartbeatTimes > (m_nHeartbeatSend +m_nHeartbeatTimeout ))
