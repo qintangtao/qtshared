@@ -87,6 +87,6 @@ void MyApplication::loadFont()
 
 bool MyApplication::event(QEvent *e)
 {
-    qCDebug(logApp) << e->type();
+    //qCDebug(logApp) << e->type();
     return QApplication::event(e);
 }

@@ -87,6 +87,7 @@ void BCDecoderPlayer::onTimeout()
  */
 VideoPlayer::VideoPlayer(QObject *parent)
     : QThread(parent)
+    , m_timeout(5)
 {
     avformat_network_init();   //初始化FFmpeg网络模块，2017.8.5---lizhen
     av_register_all();         //初始化FFMPEG  调用了这个才能正常适用编码器和解码器
@@ -110,6 +111,7 @@ void VideoPlayer::startPlay(QString strPath)
     stopPlay();
 
     m_strPath = strPath;
+    qCDebug(logPlayer) << "startPlay" << m_strPath;
     this->start();
 }
 
@@ -117,10 +119,32 @@ void VideoPlayer::stopPlay()
 {
     if (isRunning())
     {
+        qCDebug(logPlayer) << "stopPlay" << m_strPath;
         this->requestInterruption();
         this->quit();
         this->wait();
     }
+}
+
+// 回调函数
+static int interrupt_callback(void *p)
+{
+    VideoPlayer *r = (VideoPlayer *)p;
+
+    //qCDebug(logPlayer) << r->path();
+
+    if (r->isInterruptionRequested()) {
+        qCWarning(logPlayer) << "quit" << r->path();
+        return 1;
+    }
+
+    if (r->lasttime() > 0 &&
+        (time(NULL) - r->lasttime() > r->timeout())) {
+        qCWarning(logPlayer) << "timeout" << r->path();
+        return 1;
+    }
+
+    return 0;
 }
 
 void VideoPlayer::run()
@@ -149,10 +173,25 @@ void VideoPlayer::run()
 
     qCDebug(logPlayer) << "called" << m_strPath;
 
+#if 1
+    pFormatCtx->interrupt_callback.callback = interrupt_callback;
+    pFormatCtx->interrupt_callback.opaque = this;
+    this->m_lasttime = time(NULL);
+
     if (avformat_open_input(&pFormatCtx, url, NULL, &avdic) != 0) {
         qCCritical(logPlayer) << "can't open the file." << m_strPath;
         return;
     }
+
+    pFormatCtx->interrupt_callback.callback = NULL;
+    pFormatCtx->interrupt_callback.opaque = NULL;
+
+#else
+    if (avformat_open_input(&pFormatCtx, url, NULL, &avdic) != 0) {
+        qCCritical(logPlayer) << "can't open the file." << m_strPath;
+        return;
+    }
+#endif
 
     if (avformat_find_stream_info(pFormatCtx, NULL) < 0) {
         qCCritical(logPlayer) << "Could't find stream infomation." << m_strPath;
@@ -228,6 +267,8 @@ void VideoPlayer::run()
              << "width" << pCodecCtx->width
              << "height" << pCodecCtx->height;
 
+    this->m_lasttime = time(NULL);
+
     while (!this->isInterruptionRequested())
     {
         if (av_read_frame(pFormatCtx, packet) < 0)
@@ -235,6 +276,8 @@ void VideoPlayer::run()
             qCWarning(logPlayer)  << "read frame error." << m_strPath;
             break; //这里认为视频读取完了
         }
+
+        this->m_lasttime = time(NULL);
 
         if (this->isInterruptionRequested())
             break;

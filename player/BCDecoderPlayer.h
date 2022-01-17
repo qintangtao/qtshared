@@ -19,6 +19,15 @@ public:
     void startPlay(QString strPath);
     void stopPlay();
 
+    inline time_t lasttime() const
+    { return m_lasttime; }
+
+    inline time_t timeout() const
+    { return m_timeout; }
+
+    inline const QString &path() const
+    { return m_strPath; }
+
 protected:
     void run();
 
@@ -27,6 +36,8 @@ signals:
 
 private:
     QString m_strPath;
+    time_t m_lasttime;
+    time_t m_timeout;
 };
 
 class BCDecoderPlayer : public QLabel
