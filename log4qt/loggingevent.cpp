@@ -192,9 +192,11 @@ namespace Log4Qt
 	
 	
 	void LoggingEvent::setThreadNameToCurrent()
-	{
+    {
 		if (QThread::currentThread())
 			mThreadName = QThread::currentThread()->objectName();
+        if (mThreadName.isEmpty())
+            mThreadName = QString::number((int)QThread::currentThreadId());
 	}
 	
 	

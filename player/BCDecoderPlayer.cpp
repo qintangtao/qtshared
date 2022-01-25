@@ -139,7 +139,7 @@ static int interrupt_callback(void *p)
     }
 
     if (r->lasttime() > 0 &&
-        (time(NULL) - r->lasttime() > r->timeout())) {
+        ((time(NULL) - r->lasttime() )> r->timeout())) {
         qCWarning(logPlayer) << "timeout" << r->path();
         return 1;
     }
@@ -166,7 +166,8 @@ void VideoPlayer::run()
     //2017.8.5---lizhen
     AVDictionary *avdic=NULL;
     av_dict_set(&avdic,"rtsp_transport","tcp",0);
-    av_dict_set(&avdic,"max_delay","100",0);
+    //av_dict_set(&avdic,"max_delay","100",0);
+    av_dict_set(&avdic, "stimeout", "2000000", 0);
 
     std::string str = m_strPath.toStdString();
     char* url= (char*)str.c_str();
@@ -182,6 +183,8 @@ void VideoPlayer::run()
         qCCritical(logPlayer) << "can't open the file." << m_strPath;
         return;
     }
+
+    qCDebug(logPlayer) << "open success" << m_strPath;
 
     pFormatCtx->interrupt_callback.callback = NULL;
     pFormatCtx->interrupt_callback.opaque = NULL;

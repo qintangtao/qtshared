@@ -103,7 +103,7 @@ private:
     int m_nHeartbeatTimes;
     //每隔几秒发送一次心跳命令
     int m_nHeartbeatSend;
-    //断开后重连后多久再次发送心跳命令
+    //断开重连后多久再次发送心跳命令
     int m_nHeartbeatResend;
     //从发送命令起，超时几秒重连
     int m_nHeartbeatTimeout;

@@ -396,6 +396,7 @@ namespace Log4Qt
         }
 
         // parse filters
+        p_appender->clearFilters();
         for (int index = 1; index < 100; index++)  {
             LogObjectPtr<Filter> p_filter = parseFilter(rProperties, key, index);
             if (p_filter)

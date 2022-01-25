@@ -39,7 +39,7 @@ void TcpSocketClient::setIPAndPort(const QString &ip, quint16 port, bool connect
 
 void TcpSocketClient::connectToServer(int msecs, OpenMode mode)
 {
-    qCDebug(logTcp) << m_ip << m_port << state();
+    //qCDebug(logTcp) << m_ip << m_port << state();
 
     if(state() == QAbstractSocket::ConnectedState)
         return;
@@ -54,7 +54,7 @@ void TcpSocketClient::connectToServer(int msecs, OpenMode mode)
 
 void TcpSocketClient::disconnectFromServer(int msecs)
 {
-    qCDebug(logTcp) << m_ip << m_port << state();
+    //qCDebug(logTcp) << m_ip << m_port << state();
 
     stopHeartbeat();
 
@@ -126,7 +126,7 @@ void TcpSocketClient::onHeartbeatTimeout()
         // 等待设置0，会卡
         if (state() == QAbstractSocket::UnconnectedState) {
             connectToServer(0);
-            //m_nHeartbeatTimes = m_nHeartbeatSend - 1;
+            // m_nHeartbeatTimes = m_nHeartbeatSend - 1;
             m_nHeartbeatTimes = 0; //上面的连接多了会造成卡顿
         } else {
             disconnectFromServer(0);
