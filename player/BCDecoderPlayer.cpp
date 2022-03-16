@@ -62,6 +62,9 @@ void BCDecoderPlayer::SetImageSlots(const QImage image)
 
 void BCDecoderPlayer::play(QString url)
 {
+    if (m_VideoPlayer->path() == url)
+        return;
+
     m_VideoPlayer->stopPlay();
 
     this->setPixmap(m_defaultPixmap);
