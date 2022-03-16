@@ -12,8 +12,8 @@ TcpSocketClient::TcpSocketClient(QObject *parent) :
     m_nHeartbeatTimes(0),
     m_nHeartbeatSend(5),
     m_nHeartbeatTimeout(5),
-    m_bHeartbeatDoubleLink(false),
-    m_pTcpSocketClient(NULL)
+    m_pTcpSocketClient(NULL),
+    m_eHeartbeatType(HeartbeatType::CmdHeartbeat)
 {
     m_timer.setInterval(1000);
     connect(&m_timer, SIGNAL(timeout()), this, SLOT(onHeartbeatTimeout()));
@@ -21,10 +21,10 @@ TcpSocketClient::TcpSocketClient(QObject *parent) :
 
 TcpSocketClient::~TcpSocketClient()
 {
-	disconnectFromServer();
+    disconnectFromServer(0);
 
     if (m_pTcpSocketClient)
-        m_pTcpSocketClient->disconnectFromServer();
+        m_pTcpSocketClient->disconnectFromServer(0);
 }
 
 void TcpSocketClient::setIPAndPort(const QString &ip, quint16 port, bool connect)
@@ -109,10 +109,30 @@ void TcpSocketClient::onHeartbeatTimeout()
     if (m_nHeartbeatTimes++ < m_nHeartbeatSend)
         return;
 
-    if (m_bHeartbeatDoubleLink) {
-        m_pTcpSocketClient->setIPAndPort(m_ip, m_port);
-    } else {
+    switch (m_eHeartbeatType) {
+    case HeartbeatType::DoubleLinkHeartbeat:
+    {
+        //第一次断开
+        if (m_nHeartbeatTimes == (m_nHeartbeatSend+1) &&
+                m_pTcpSocketClient->state() != QAbstractSocket::UnconnectedState)
+            m_pTcpSocketClient->disconnectFromServer(0);
+
+       if (m_pTcpSocketClient->state() == QAbstractSocket::UnconnectedState)
+            m_pTcpSocketClient->connectToServer(0);
+       // 连接不上则超时，会断开主连接，然后重新尝试连接
+    }
+        break;
+    case HeartbeatType::CmdHeartbeat:
+    {
         send(m_heartbeatCmd);
+    }
+        break;
+    case HeartbeatType::StateHeartbeat:
+    {
+        if (this->state() == QAbstractSocket::ConnectedState)
+            m_nHeartbeatTimes = 0;
+    }
+        break;
     }
 
     if (m_nHeartbeatTimes > (m_nHeartbeatSend +m_nHeartbeatTimeout ))
@@ -136,7 +156,7 @@ void TcpSocketClient::onHeartbeatTimeout()
     }
 }
 
-void TcpSocketClient::onHeartbeatStateChanged(QAbstractSocket::SocketState state)
+void TcpSocketClient::onHeartbeatDoubleLinkStateChanged(QAbstractSocket::SocketState state)
 {
     qCDebug(logTcp) << state;
     if (state == QAbstractSocket::ConnectedState) {
@@ -147,6 +167,20 @@ void TcpSocketClient::onHeartbeatStateChanged(QAbstractSocket::SocketState state
             disconnectFromServer();
             connectToServer();
         }
+
+        if (m_pTcpSocketClient)
+            m_pTcpSocketClient->disconnectFromServer(0);
+    }
+}
+
+void TcpSocketClient::onHeartbeatStateChanged(QAbstractSocket::SocketState state)
+{
+    qCDebug(logTcp) << state;
+    if (state == QAbstractSocket::ConnectedState) {
+        m_nHeartbeatTimes = 0;
+    } else if (state == QAbstractSocket::UnconnectedState) {
+        connectToServer(0);
+        m_nHeartbeatTimes = 0;
     }
 }
 
@@ -155,33 +189,46 @@ void TcpSocketClient::startHeartbeat()
     if (!m_bHeartbeatEnabled)
         return;
 
-    if (m_bHeartbeatDoubleLink) {
+    switch (m_eHeartbeatType) {
+    case HeartbeatType::DoubleLinkHeartbeat:
+    {
         if (NULL == m_pTcpSocketClient) {
             m_pTcpSocketClient = new TcpSocketClient(this);
             m_pTcpSocketClient->setHeartbeatEnabled(false);
-            connect(m_pTcpSocketClient, SIGNAL(stateChanged(QAbstractSocket::SocketState)), this, SLOT(onHeartbeatStateChanged(QAbstractSocket::SocketState)));
+            m_pTcpSocketClient->setIPAndPort(m_ip, m_port, false);
+            connect(m_pTcpSocketClient, SIGNAL(stateChanged(QAbstractSocket::SocketState)), this, SLOT(onHeartbeatDoubleLinkStateChanged(QAbstractSocket::SocketState)));
         }
-        if (!m_timer.isActive()) {
-            qCDebug(logTcp) << m_ip << m_port << state() << m_bHeartbeatDoubleLink << "start heartbeat";
-            m_timer.start();
-        }
-    } else {
-        if (!m_heartbeatCmd.isEmpty()) {
-            if (!m_timer.isActive()) {
-                qCDebug(logTcp) << m_ip << m_port << state() << m_heartbeatCmd << "start heartbeat";
-                m_timer.start();
-            }
-        } else {
+    }
+        break;
+    case HeartbeatType::CmdHeartbeat:
+    {
+        if (m_heartbeatCmd.isEmpty()) {
             qCWarning(logTcp) << m_ip << m_port << state() << "heartbeat cmd \"" << m_heartbeatCmd << "\" is empty";
+            return;
         }
+    }
+        break;
+    case HeartbeatType::StateHeartbeat:
+    {
+        connect(this, SIGNAL(stateChanged(QAbstractSocket::SocketState)), this, SLOT(onHeartbeatStateChanged(QAbstractSocket::SocketState)));
+    }
+        break;
+    }
+
+    if (!m_timer.isActive()) {
+        qCDebug(logTcp) << m_ip << m_port << state() <<  m_eHeartbeatType << "start heartbeat";
+        m_timer.start();
     }
 }
 
 void TcpSocketClient::stopHeartbeat()
 {
+    if (m_eHeartbeatType == HeartbeatType::StateHeartbeat)
+        disconnect(this, SIGNAL(stateChanged(QAbstractSocket::SocketState)), this, SLOT(onHeartbeatStateChanged(QAbstractSocket::SocketState)));
+
     //m_bHeartbeatEnabled &&   不加此判断，防止中途设置为false
     if (m_timer.isActive()) {
-        qCDebug(logTcp) << m_ip << m_port << state() << m_bHeartbeatDoubleLink << m_heartbeatCmd  << "stop heartbeat";
+        qCDebug(logTcp) << m_ip << m_port << state() <<  m_eHeartbeatType << m_heartbeatCmd  << "stop heartbeat";
         m_timer.stop();
     }
 }

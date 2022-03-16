@@ -7,6 +7,14 @@ class TcpSocketClient : public QTcpSocket
 {
 	Q_OBJECT
 public:
+
+    enum HeartbeatType {
+        CmdHeartbeat,
+        DoubleLinkHeartbeat,
+        StateHeartbeat
+    };
+    Q_ENUMS(HeartbeatType)
+
     TcpSocketClient(QObject *parent = nullptr);
     ~TcpSocketClient();
 
@@ -64,15 +72,16 @@ public:
     inline const QByteArray &heartbeatCmd() const
     { return m_heartbeatCmd; }
 
+
     /**
-     * 内部创建链接检测是否可连
-     * @brief setHeartbeatDoubleLink
+     * 心跳类型
+     * @brief setHeartbeatType
      * @param v
      */
-    inline void setHeartbeatDoubleLink(bool b)
-    { m_bHeartbeatDoubleLink = b; }
-    inline const bool &heartbeatDoubleLink() const
-    { return m_bHeartbeatDoubleLink; }
+    inline void setHeartbeatType(HeartbeatType t)
+    { m_eHeartbeatType = t; }
+    inline HeartbeatType heartbeatType() const
+    { return m_eHeartbeatType; }
 
     /**
      * 收到心跳回送命令后，清除心跳计数器
@@ -85,6 +94,7 @@ Q_SIGNALS:
 
 private Q_SLOTS:
     void onHeartbeatTimeout();
+    void onHeartbeatDoubleLinkStateChanged(QAbstractSocket::SocketState);
     void onHeartbeatStateChanged(QAbstractSocket::SocketState);
 
 private:
@@ -109,8 +119,8 @@ private:
     int m_nHeartbeatTimeout;
     //心跳命令
     QByteArray m_heartbeatCmd;
-    //内部创建链接检测是否可连
-    bool m_bHeartbeatDoubleLink;
+    //心跳类型
+    HeartbeatType m_eHeartbeatType;
 
     // 内部心跳检测
     TcpSocketClient *m_pTcpSocketClient;
