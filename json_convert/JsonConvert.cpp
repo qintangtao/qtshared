@@ -41,6 +41,9 @@ bool JsonConvert::toObject(const QJsonObject &json, QObject &obj)
         }
 
         QMetaProperty p = meta->property(id);
+        if (!p.isWritable())
+            continue;
+
         QJsonValue jsonValue = json.value(key);
         QJsonValue::Type jsonType = jsonValue.type();
 
@@ -323,9 +326,8 @@ QObject *JsonConvert::createObject(QObject &obj, const QString &key)
     if ( Q_NULLPTR == meta)
         return Q_NULLPTR;
 
-    int id = meta->indexOfProperty(QString("%1%2%3")
-                                   .arg(QStringLiteral(JSON_CONVERT_PROPERTY_NAME_PREFIX_STR))
-                                   .arg("new_")
+    int id = meta->indexOfProperty(QString("%1%2")
+                                   .arg(QStringLiteral(JSON_CONVERT_CREATE_PROPERTY_NAME_PREFIX_STR))
                                    .arg(key)
                                    .toLocal8Bit().constData());
     if (-1 == id) {

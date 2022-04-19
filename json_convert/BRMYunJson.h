@@ -19,8 +19,8 @@ class BRMYunJson  : public QObject {
     JSON_CONVERT_PROPERTY(QVariantList, list_json, WRITE set_list_json READ list_json)
     JSON_CONVERT_PROPERTY(BRMYunJson *, obj_json, WRITE set_obj_json READ obj_json)
 
-    JSON_CONVERT_PROPERTY(BRMYunJson *, new_obj_json, READ new_obj_json)
-    JSON_CONVERT_PROPERTY(BRMYunJson *, new_list_json, READ new_obj_json)
+    JSON_CONVERT_CREATE_PROPERTY(BRMYunJson *, list_json, READ create_obj_json)
+    JSON_CONVERT_CREATE_PROPERTY(BRMYunJson *, obj_json, READ create_obj_json)
 
 public:
     explicit BRMYunJson(QObject *parent = nullptr);
@@ -36,9 +36,7 @@ public:
     JSON_CONVERT_METHOD(QVariantList, m_list_json, set_list_json, list_json)
     JSON_CONVERT_METHOD(BRMYunJson *, m_obj_json, set_obj_json, obj_json)
 
-    BRMYunJson *new_obj_json() {
-        return new BRMYunJson();
-    }
+    JSON_CONVERT_CREATE_METHOD(BRMYunJson, create_obj_json)
 
     QString toString() const;
 
