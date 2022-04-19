@@ -88,14 +88,14 @@ qint64 TcpSocketClient::send(const QByteArray& data)
 
     if(state() == QAbstractSocket::ConnectedState)
     {
-        qCDebug(logTcp) << m_ip << m_port << data << data.toHex();
+        qCDebug(logTcp) << m_ip << m_port << QString(data) << data.toHex();
 
         sendLen = write(data);
         flush();
     }
     else
     {
-        qCWarning(logTcp) << m_ip << m_port << state() << data << data.toHex();
+        qCWarning(logTcp) << m_ip << m_port << state() <<  QString(data)  << data.toHex();
     }
 
     return sendLen;
