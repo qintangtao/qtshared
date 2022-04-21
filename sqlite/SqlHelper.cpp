@@ -16,6 +16,7 @@ template <typename T>
 SqlHelper<T>::SqlHelper(QSqlDatabase *db)
     : m_db(db)
 {
+  //  readPropertys();
     createTable();
 }
 
@@ -74,6 +75,10 @@ bool SqlHelper<T>::insert(T *obj)
             sqlProperty.append(name);
             sqlValue.append(QString("'%1'").arg(v.toString()));
             break;
+        case QVariant::Uuid:
+            sqlProperty.append(name);
+            sqlValue.append(QString("'%1'").arg(v.toUuid().toString()));
+            break;
         default:
             break;
         }
@@ -101,23 +106,10 @@ bool SqlHelper<T>::update(T *obj, const QVariantMap& where)
     sql.append("UPDATE");
     sql.append(tableName());
     sql.append("SET");
-
+    sql.append(setSql(obj, where.keys()));
     sql.append("WHERE");
     sql.append(whereSql(where));
     sql.append(";");
-
-#if 0
-    QSqlQuery query( m_dbconn );
-    query.exec( QString("UPDATE BSDisplays "
-                        "SET bsSegmentation = '%1'"
-                        "WHERE bsId = '%2' AND bsGroupDisplayGUID "
-                        "IN (SELECT bsGUID FROM BSGroupDisplays WHERE bsRoomGUID "
-                        "IN (SELECT bsGUID FROM BSRooms WHERE bsId = '%3' AND bsMacAddr = '%4'))")
-                .arg( segment )
-                .arg( Displayid )
-                .arg( roomid )
-                .arg( bsMacAddr ));
-#endif
 
     return execSql(sql.join(' '));
 }
@@ -130,7 +122,7 @@ bool SqlHelper<T>::update(T *obj)
     //自动查找主键，并填入
     //where.insert("id", v);
 
-    return update(where);
+    return update(obj, where);
 }
 
 template <typename T>
@@ -159,7 +151,7 @@ bool SqlHelper<T>::remove(const QVariant& v)
 }
 
 template <typename T>
-bool SqlHelper<T>::queryAll(QList<T *> &list, const QVariantMap& where)
+bool SqlHelper<T>::queryOne(T &obj, const QVariantMap& where)
 {
     bool r = false;
 
@@ -211,10 +203,93 @@ bool SqlHelper<T>::queryAll(QList<T *> &list, const QVariantMap& where)
         }
 
         while ( query.next() ) {
-            T *t = T::newObject();
+
             for (int i = 0; i < filedNames.count(); i++) {
                 const QVariant &v = query.value(filedNames.at(i));
                 const QMetaProperty &p = propertys.at(i);
+                p.write(&obj, v);
+            }
+
+            break;
+        }
+    }
+
+    m_db->commit();
+
+    return r;
+}
+
+template <typename T>
+bool SqlHelper<T>:: queryOne(T &obj)
+{
+    QVariantMap where;
+
+    //自动查找主键，并填入
+    //where.insert("id", v);
+
+    return queryOne(obj, where);
+}
+
+template <typename T>
+bool SqlHelper<T>::queryAll(QList<T *> &list, const QVariantMap& where)
+{
+    bool r = false;
+
+    QStringList sql;
+    sql.append("SELECT");
+    sql.append("*");
+    sql.append("FROM");
+    sql.append(tableName());
+
+    if (!where.isEmpty())
+    {
+        sql.append("WHERE");
+        sql.append(whereSql(where));
+    }
+
+    sql.append(";");
+
+    m_db->transaction();
+
+    QSqlQuery query( *m_db );
+
+    r  = query.exec(sql.join(' '));
+    if (r)
+    {
+        QStringList filedNames;
+        QList<QMetaProperty> propertys;
+
+        QSqlRecord r = query.record();
+        QMetaObject meta = T::staticMetaObject;
+
+        for (int i = 0; i < r.count(); i++) {
+
+            QString fieldName = r.fieldName(i);
+
+            int id = meta.indexOfProperty(QString("%1%2")
+                                          .arg(QStringLiteral(JSON_CONVERT_PROPERTY_NAME_PREFIX_STR))
+                                          .arg(fieldName)
+                                          .toLocal8Bit().constData());
+
+            QSqlField sqlField = r.field(i);
+
+            //qCDebug(logSqlHelper) << fieldName << id << sqlField.isAutoValue();
+
+            if (-1 == id)
+                continue;
+
+            filedNames.append(fieldName);
+            propertys.append(meta.property(id));
+        }
+
+        while ( query.next() ) {
+            T *t = new T();
+            for (int i = 0; i < filedNames.count(); i++) {
+                const QVariant &v = query.value(filedNames.at(i));
+                const QMetaProperty &p = propertys.at(i);
+
+                qCDebug(logSqlHelper) << p.name() << v;
+
                 p.write(t, v);
             }
             list.append(t);
@@ -227,24 +302,56 @@ bool SqlHelper<T>::queryAll(QList<T *> &list, const QVariantMap& where)
 }
 
 template <typename T>
+void SqlHelper<T>::readPropertys()
+{
+    QMetaObject meta = T::staticMetaObject;
+    int count = meta.propertyCount();
+    for (int i = 0; i < count; i++) {
+        QMetaProperty p  = meta.property(i);
+
+        if (!p.isReadable() || !p.isWritable())
+            continue;
+
+        QString name = p.name();
+        if (!name.startsWith(QStringLiteral(JSON_CONVERT_PROPERTY_NAME_PREFIX_STR)))
+            continue;
+
+        qCDebug(logSqlHelper)
+                    << "id:" << i
+                    << "name:" << p.name()
+                    << "typeName:" << p.typeName()
+                    << "type:" << p.type()
+                    << "isReadable:" << p.isReadable()
+                    << "isWritable:" << p.isWritable();
+
+        m_lstPropertys.append(p);
+    }
+}
+
+template <typename T>
 bool SqlHelper<T>::createTable()
 {
     QStringList sqlProperty;
+
+    //qCDebug(logSqlHelper()) <<m_lstPropertys.count() << m_lstPropertys.first().name();
 
     QMetaObject meta = T::staticMetaObject;
     int count = meta.propertyCount();
     for (int i = 0; i < count; i++) {
         QMetaProperty p  = meta.property(i);
 
-        if (!p.isReadable())
+        if (!p.isReadable() || !p.isWritable())
             continue;
 
         QString name = p.name();
-        if (!name.startsWith(QStringLiteral(JSON_CONVERT_PROPERTY_NAME_PREFIX_STR))) {
+        if (!name.startsWith(QStringLiteral(JSON_CONVERT_PROPERTY_NAME_PREFIX_STR)))
             continue;
-        }
 
-        name.remove(0, QStringLiteral(JSON_CONVERT_PROPERTY_NAME_PREFIX_STR).length());
+        qCDebug(logSqlHelper()) << p.name();
+
+        name = originalProperty(p.name());
+
+        qCDebug(logSqlHelper()) << name;
 
         switch (p.userType()) {
         case QVariant::Bool:
@@ -263,6 +370,9 @@ bool SqlHelper<T>::createTable()
             break;
         case QVariant::String:
             sqlProperty.append(QString("%1 TEXT").arg(name));
+            break;
+        case QVariant::Uuid:
+            sqlProperty.append(QString("%1 UNIQUEIDENTIFIER").arg(name));
             break;
         default:
             break;
@@ -299,7 +409,9 @@ bool SqlHelper<T>::execSql(const QString &sql, bool transaction)
 
     if (transaction)
         m_db->transaction();
+
     r = query.exec(sql);
+
     if (transaction)
         m_db->commit();
 
@@ -307,13 +419,6 @@ bool SqlHelper<T>::execSql(const QString &sql, bool transaction)
         qCCritical(logSqlHelper) << sql << "\r\n" << query.lastError().text();
 
     return r;
-}
-
-template <typename T>
-QString SqlHelper<T>::tableName()
-{
-    QMetaObject meta = T::staticMetaObject;
-    return meta.className();
 }
 
 template <typename T>
@@ -370,6 +475,60 @@ QString SqlHelper<T>::whereSql(const QVariantMap& where)
     return sql.join(" AND ");
 }
 
+template <typename T>
+QString SqlHelper<T>::setSql(T *obj, const QStringList& ignore)
+{
+    QStringList sql;
+
+    QMetaObject meta = T::staticMetaObject;
+    int count = meta.propertyCount();
+    for (int i = 0; i < count; i++) {
+        QMetaProperty p  = meta.property(i);
+
+        if (!p.isReadable())
+            continue;
+
+        QString name = p.name();
+        if (!name.startsWith(QStringLiteral(JSON_CONVERT_PROPERTY_NAME_PREFIX_STR)))
+            continue;
+
+        name.remove(0, QStringLiteral(JSON_CONVERT_PROPERTY_NAME_PREFIX_STR).length());
+
+        if (ignore.contains(name))
+            continue;
+
+        QVariant v = p.read(obj);
+
+        switch (p.userType()) {
+        case QVariant::Bool:
+            sql.append(QString("%1=%2").arg(name).arg(v.toBool() ? 1 : 0));
+            break;
+        case QVariant::Int:
+            sql.append(QString("%1=%2").arg(name).arg(v.toInt()));
+            break;
+        case QVariant::UInt:
+            sql.append(QString("%1=%2").arg(name).arg(v.toUInt()));
+            break;
+        case QVariant::LongLong:
+            sql.append(QString("%1=%2").arg(name).arg(v.toLongLong()));
+            break;
+        case QVariant::ULongLong:
+            sql.append(QString("%1=%2").arg(name).arg(v.toULongLong()));
+            break;
+        case QVariant::Double:
+            sql.append(QString("%1=%2").arg(name).arg(v.toDouble()));
+            break;
+        case QVariant::String:
+            sql.append(QString("%1=%2").arg(name).arg(v.toString()));
+            break;
+        default:
+            break;
+        }
+    }
+
+    return sql.join(',');
+}
+
 void test_SqlHelper()
 {
     BRMYunJson json2;
@@ -401,8 +560,38 @@ void test_SqlHelper()
     if( !m_dbconn.open() )
         return;
 
+    QSqlQuery query(m_dbconn);
+    query.prepare("INSERT INTO BRMYunJson (test_double, test_bool, cmd_top, cmd_bottom, cmd_left, cmd_right) VALUES (:test_double, :test_bool, :cmd_top, :cmd_bottom, :cmd_left, :cmd_right); ");
+
+    query.bindValue(":test_double", 1.2);
+    query.bindValue(":test_bool", 1);
+    query.bindValue(":cmd_top", "1");
+    query.bindValue(":cmd_bottom", "1");
+    query.bindValue(":cmd_left", "1");
+    query.bindValue(":cmd_right", "1");
+
+    //query.exec();
+
+    qCDebug(logSqlHelper) << query.executedQuery();
+    qCDebug(logSqlHelper) << query.lastQuery();
+
+
     SqlHelper<BRMYunJson> helper(&m_dbconn);
+
+
+    json2.set_test_uuid(QUuid::createUuid());
+
     helper.insert(&json2);
+
+
+    QList<BRMYunJson *> list;
+    helper.queryAll(list);
+    foreach(BRMYunJson *pJson, list)
+    {
+        qCDebug(logSqlHelper) << pJson->toString();
+    }
+
+    return;
 
    // json2.set_test_int(3);
     json2.set_test_double(33.5);
@@ -414,13 +603,20 @@ void test_SqlHelper()
 
     QVariantMap map2;
     map2.insert("cmd_right", "4");
-    QList<BRMYunJson *> list;
-    helper.queryAll(list, map2);
+    QList<BRMYunJson *> list2;
+    helper.queryAll(list2, map2);
 
-    foreach(BRMYunJson *pJson, list)
+    foreach(BRMYunJson *pJson, list2)
     {
         qCDebug(logSqlHelper) << pJson->toString();
     }
+
+    QVariantMap map3;
+    map3.insert("test_int", 1);
+
+    json2.set_test_double(43.5);
+
+    helper.update(&json2, map3);
 
     m_dbconn.close();
 

@@ -5,15 +5,22 @@
 #include <SqlHelper.h>
 #include <QVariantList>
 #include <QDateTime>
-
+#include <QUuid>
 
 class BRMYunJson  : public QObject {
     Q_OBJECT
+
+    //Q_PROPERTY(QString SqlHelper_PRIMARYKEY_test_name WRITE set_test_name READ test_name)
+    //Q_PROPERTY(QString SqlHelper_PRIMARYKEY_AUTOINCREMENT_test_name WRITE set_test_name READ test_name)
+    //Q_PROPERTY(QString SqlHelper_PRIMARYKEY_test_name WRITE set_test_name READ test_name)
+
+    // Q_PROPERTY( SqlHelper_uuid WRITE set_test_name READ test_name)
 
 
     JSON_CONVERT_PROPERTY(int, test_int, WRITE set_test_int READ test_int)
     JSON_CONVERT_PROPERTY(double, test_double, WRITE set_test_double READ test_double)
     JSON_CONVERT_PROPERTY(bool, test_bool, WRITE set_test_bool READ test_bool)
+    JSON_CONVERT_PROPERTY(QUuid, test_uuid, WRITE set_test_uuid READ test_uuid)
     JSON_CONVERT_PROPERTY(QDateTime, cmd_time, WRITE set_cmd_time READ cmd_time)
     JSON_CONVERT_PROPERTY(QString, cmd_top, WRITE set_cmd_top READ cmd_top)
     JSON_CONVERT_PROPERTY(QString, cmd_bottom, WRITE set_cmd_bottom READ cmd_bottom)
@@ -31,8 +38,9 @@ public:
     explicit BRMYunJson(QObject *parent = nullptr);
     ~BRMYunJson() ;
 
-    Q_NEW_OBJECT(BRMYunJson)
+    //Q_NEW_OBJECT(BRMYunJson)
 
+    JSON_CONVERT_METHOD(QUuid, m_test_uuid, set_test_uuid, test_uuid)
     JSON_CONVERT_METHOD(int, m_test_int, set_test_int, test_int)
     JSON_CONVERT_METHOD(double, m_test_double, set_test_double, test_double)
     JSON_CONVERT_METHOD(bool, m_test_bool, set_test_bool, test_bool)
@@ -58,6 +66,7 @@ private:
     QList<BRMYunJson *> m_list_json2;
     BRMYunJson *m_obj_json;
 
+    QUuid m_test_uuid;
     bool m_test_bool;
     int   m_test_int;
     double m_test_double;

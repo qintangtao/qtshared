@@ -1,6 +1,8 @@
 #ifndef SqlHelper_H
 #define SqlHelper_H
 
+#include <QMetaObject>
+#include <QMetaProperty>
 #include <QSqlDatabase>
 #include <QStringList>
 #include <QList>
@@ -13,6 +15,11 @@
 
 #define JSON_CONVERT_PROPERTY_NAME_PREFIX                  SqlHelper_
 #define JSON_CONVERT_PROPERTY_NAME_PREFIX_STR          JSON_CONVERT_STR(JSON_CONVERT_PROPERTY_NAME_PREFIX)
+
+#define JSON_CONVERT_CREATE_PROPERTY_NAME_PREFIX                  SqlHelperCreate_
+#define JSON_CONVERT_CREATE_PROPERTY_NAME_PREFIX_STR          JSON_CONVERT_STR(JSON_CONVERT_CREATE_PROPERTY_NAME_PREFIX)
+
+
 
 #define JSON_CONVERT_CREATE_PROPERTY_NAME_PREFIX                  SqlHelperCreate_
 #define JSON_CONVERT_CREATE_PROPERTY_NAME_PREFIX_STR          JSON_CONVERT_STR(JSON_CONVERT_CREATE_PROPERTY_NAME_PREFIX)
@@ -57,21 +64,48 @@ public:
 
     bool remove(const QVariant& v);
 
+    bool queryOne(T &obj, const QVariantMap& where = QVariantMap());
+
+    bool queryOne(T &obj);
+
     bool queryAll(QList<T *> &list, const QVariantMap& where = QVariantMap());
 
     bool execSql(const QString &sql, bool transaction = true);
 
 private:
+    void readPropertys();
+
     bool createTable();
+
+    QString originalProperty(const QString &name);
 
     QString tableName();
 
     QString whereSql(const QVariantMap& where);
 
+    QString setSql(T *obj, const QStringList& ignore);
+
+
+
 private:
     QSqlDatabase *m_db;
+    QList<QMetaProperty> m_lstPropertys;
 };
 
+
+
+template <typename T>
+inline QString SqlHelper<T>::originalProperty(const QString &name)
+{
+    return name.right(name.length() - QStringLiteral(JSON_CONVERT_PROPERTY_NAME_PREFIX_STR).length());
+}
+
+template <typename T>
+inline QString SqlHelper<T>::tableName()
+{
+    QMetaObject meta = T::staticMetaObject;
+    return meta.className();
+}
 
 void test_SqlHelper();
 

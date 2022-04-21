@@ -13,6 +13,7 @@ QString BRMYunJson::toString() const
                 QLatin1String(", cmd_bottom: ") + m_cmd_bottom +
                 QLatin1String(", cmd_left: ") + m_cmd_left +
                 QLatin1String(", cmd_right: ") + m_cmd_right +
+                QLatin1String(", test_uuid: ") + QString("%1").arg(m_test_uuid.toString()) +
                 QLatin1String(", test_bool: ") + QString("%1").arg(m_test_bool) +
                 QLatin1String(", test_double: ") + QString::number(m_test_double) +
                 QLatin1String(", test_int: ") + QString::number(m_test_int) ;
@@ -26,7 +27,6 @@ QObject* BRMYunJson::newIns(const QString &typeName)
 
     return Q_NULLPTR;
 }
-
 
 QObject* BRMYunJson::newIns2(const QString &typeName)
 {
