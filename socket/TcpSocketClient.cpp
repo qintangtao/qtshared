@@ -135,7 +135,7 @@ void TcpSocketClient::onHeartbeatTimeout()
         break;
     }
 
-    if (m_nHeartbeatTimes > (m_nHeartbeatSend +m_nHeartbeatTimeout ))
+    if (m_nHeartbeatTimes > (m_nHeartbeatSend + m_nHeartbeatTimeout ))
     {
         qCWarning(logTcp) << m_ip << m_port << state()
                         << "heartbeatTimes:" << m_nHeartbeatTimes
