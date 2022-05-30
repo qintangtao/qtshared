@@ -36,6 +36,9 @@
 #define JSON_CONVERT_CREATE_METHOD(CLASSNAME,  GETNAME) \
     inline CLASSNAME  *GETNAME() const { return new CLASSNAME() ; }
 
+
+#define Q_NEW_OBJECT(T) static T *newObject() { return new T(NULL); }
+
 class JsonConvert : public QObject
 {
     Q_OBJECT
@@ -54,6 +57,7 @@ private:
     void setProperty(QObject &obj, int id, QVariant v);
 
     QObject *createObject(QObject &obj, const QString &key);
+    QObject *createObject2(QObject &obj, const QString &key);
 };
 
 #endif // JsonConvert_H

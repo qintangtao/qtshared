@@ -211,6 +211,14 @@ bool JsonConvert::toJson(const QObject &obj, QJsonObject &json)
         default:
         {
 #if 1
+            QString typeName = p.typeName();
+            if (typeName.startsWith("QList<")) {
+
+            } else {
+
+            }
+
+#else
             QObject* subObj = v.value<QObject*>();
             if (Q_NULLPTR != subObj)
             {
@@ -231,8 +239,126 @@ bool JsonConvert::toJson(const QObject &obj, QJsonObject &json)
     return true;
 }
 
+template<class T>
+void test_MetaObject()
+{
+    QMetaObject meta = T::staticMetaObject;
+
+    qCDebug(logJsonConvert) << meta.className();
+    int count = meta.propertyCount();
+    for (int i = 0; i < count; i++) {
+        QMetaProperty p  = meta.property(i);
+
+#if 1
+        qCDebug(logJsonConvert)
+            << "id:" << i
+            << "name:" << p.name()
+            << "typeName:" << p.typeName()
+            << "type:" << p.type()
+            << "isReadable:" << p.isReadable()
+            << "isWritable:" << p.isWritable();
+#endif
+    }
+
+    T *obj = T::newObject();
+    if (obj)
+    {
+        obj->setProperty("cmd_top", "cmd_top");
+        qCDebug(logJsonConvert) << obj->property("cmd_top");
+    }
+}
+
+template<class T>
+class DBHelper {
+public:
+    int insert(T *obj)
+    {
+
+        QStringList sqlProperty;
+
+        QMetaObject meta = T::staticMetaObject;
+        int count = meta.propertyCount();
+        for (int i = 0; i < count; i++) {
+            QMetaProperty p  = meta.property(i);
+
+            if (!p.isReadable())
+                continue;
+
+            QString name = p.name();
+            if (!name.startsWith(QStringLiteral(JSON_CONVERT_PROPERTY_NAME_PREFIX_STR))) {
+                continue;
+            }
+
+            name.remove(0, QStringLiteral(JSON_CONVERT_PROPERTY_NAME_PREFIX_STR).length());
+
+            QVariant v = p.read(obj);
+
+            switch (p.userType()) {
+            case QVariant::Bool:
+                sqlProperty.append(QString("%1").arg(v.toBool()));
+                break;
+            case QVariant::Int:
+                sqlProperty.append(QString("%1").arg(v.toInt()));
+                break;
+            case QVariant::UInt:
+
+                break;
+            case QVariant::LongLong:
+
+                break;
+            case QVariant::ULongLong:
+
+                break;
+            case QVariant::Double:
+
+                break;
+            case QVariant::String:
+                sqlProperty.append(QString("'%1'").arg(v.toString()));
+                break;
+            default:
+                break;
+            }
+        }
+
+        QStringList sql;
+        sql.append("INSERT");
+        sql.append("INTO");
+        sql.append(tableName());
+        sql.append("VALUES");
+        sql.append("(");
+        sql.append(sqlProperty.join(','));
+        sql.append(");");
+
+        qCDebug(logJsonConvert) <<sql.join(' ');
+
+        return 0;
+    }
+
+
+
+    QString tableName()
+    {
+        QMetaObject meta = T::staticMetaObject;
+        return meta.className();
+    }
+};
+
 void JsonConvert::test_toObject()
 {
+    //test_MetaObject<BRMYunJson>();
+
+    BRMYunJson json2;
+    json2.set_cmd_top("1");
+    json2.set_cmd_bottom("2");
+    json2.set_cmd_left("3");
+    json2.set_cmd_right("4");
+
+    DBHelper<BRMYunJson> db;
+
+    db.insert(&json2);
+
+    return;
+
     QJsonObject json;
     json.insert("cmd_top", "1");
     json.insert("cmd_bottom", "2");
@@ -344,4 +470,12 @@ QObject *JsonConvert::createObject(QObject &obj, const QString &key)
     QMetaProperty p = meta->property(id);
     QVariant v =  p.read(&obj);
     return  *reinterpret_cast< QObject**>(v.data());
+}
+
+QObject *JsonConvert::createObject2(QObject &obj, const QString &key)
+{
+    QObject *ret = Q_NULLPTR;
+    if (QMetaObject::invokeMethod(&obj, "newIns",  Qt::DirectConnection,  Q_RETURN_ARG(QObject *, ret), Q_ARG(QString, key)))
+        return ret;
+    return Q_NULLPTR;
 }

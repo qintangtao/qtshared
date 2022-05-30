@@ -4,10 +4,15 @@
 #include <QObject>
 #include <JsonConvert.h>
 #include <QVariantList>
+#include <QDateTime>
 
 
 class BRMYunJson  : public QObject {
     Q_OBJECT
+
+
+
+    JSON_CONVERT_PROPERTY(QDateTime, cmd_time, WRITE set_cmd_time READ cmd_time)
 
     JSON_CONVERT_PROPERTY(QString, cmd_top, WRITE set_cmd_top READ cmd_top)
     JSON_CONVERT_PROPERTY(QString, cmd_bottom, WRITE set_cmd_bottom READ cmd_bottom)
@@ -18,14 +23,19 @@ class BRMYunJson  : public QObject {
     JSON_CONVERT_PROPERTY(bool, test_bool, WRITE set_test_bool READ test_bool)
     JSON_CONVERT_PROPERTY(QVariantList, list_json, WRITE set_list_json READ list_json)
     JSON_CONVERT_PROPERTY(BRMYunJson *, obj_json, WRITE set_obj_json READ obj_json)
+    JSON_CONVERT_PROPERTY(QList<BRMYunJson *>, list_json2, WRITE set_list_json2 READ list_json2)
 
     JSON_CONVERT_CREATE_PROPERTY(BRMYunJson *, list_json, READ create_obj_json)
+    JSON_CONVERT_CREATE_PROPERTY(BRMYunJson *, list_json2, READ create_obj_json)
     JSON_CONVERT_CREATE_PROPERTY(BRMYunJson *, obj_json, READ create_obj_json)
 
 public:
     explicit BRMYunJson(QObject *parent = nullptr);
     ~BRMYunJson() ;
 
+    Q_NEW_OBJECT(BRMYunJson)
+
+    JSON_CONVERT_METHOD(QDateTime, m_cmd_time, set_cmd_time, cmd_time)
     JSON_CONVERT_METHOD(QString, m_cmd_top, set_cmd_top, cmd_top)
     JSON_CONVERT_METHOD(QString, m_cmd_bottom, set_cmd_bottom, cmd_bottom)
     JSON_CONVERT_METHOD(QString, m_cmd_left, set_cmd_left, cmd_left)
@@ -34,19 +44,27 @@ public:
     JSON_CONVERT_METHOD(double, m_test_double, set_test_double, test_double)
     JSON_CONVERT_METHOD(bool, m_test_bool, set_test_bool, test_bool)
     JSON_CONVERT_METHOD(QVariantList, m_list_json, set_list_json, list_json)
+    JSON_CONVERT_METHOD(QList<BRMYunJson *>, m_list_json2, set_list_json2, list_json2)
     JSON_CONVERT_METHOD(BRMYunJson *, m_obj_json, set_obj_json, obj_json)
 
     JSON_CONVERT_CREATE_METHOD(BRMYunJson, create_obj_json)
+
+    Q_INVOKABLE QObject* newIns(const QString &typeName);
+
+    Q_INVOKABLE static QObject* newIns2(const QString &typeName);
 
     QString toString() const;
 
 private:
     QVariantList m_list_json;
+    QList<BRMYunJson *> m_list_json2;
     BRMYunJson *m_obj_json;
 
     bool m_test_bool;
-    int m_test_int;
+    int   m_test_int;
     double m_test_double;
+
+    QDateTime m_cmd_time;
 
     QString m_cmd_top;
     QString m_cmd_bottom;
@@ -56,5 +74,6 @@ private:
 private:
     Q_DISABLE_COPY(BRMYunJson)
 };
+
 
 #endif

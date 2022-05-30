@@ -2,10 +2,12 @@
 
 BRMYunJson::BRMYunJson(QObject *parent)
     : QObject(NULL)
-    , m_obj_json(NULL){}
+    , m_obj_json(NULL){
+
+    //qRegisterMetaType<QList<BRMYunJson *>>("QList<BRMYunJson *>");
+}
 
 BRMYunJson::~BRMYunJson() {}
-
 
 QString BRMYunJson::toString() const
 {
@@ -18,3 +20,17 @@ QString BRMYunJson::toString() const
                 QLatin1String(", test_int: ") + QString::number(m_test_int) ;
 }
 
+QObject* BRMYunJson::newIns(const QString &typeName)
+{
+    if (typeName == "list_json" ||
+            typeName == "obj_json")
+        return new BRMYunJson();
+
+    return Q_NULLPTR;
+}
+
+
+QObject* BRMYunJson::newIns2(const QString &typeName)
+{
+    return new BRMYunJson();
+}

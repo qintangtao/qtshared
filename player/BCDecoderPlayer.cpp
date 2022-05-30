@@ -111,7 +111,7 @@ void VideoPlayer::startPlay(QString strPath)
     //if (strPath == m_strPath)
     //    return;
 
-    stopPlay();
+    //stopPlay();
 
     m_strPath = strPath;
     qCDebug(logPlayer) << "startPlay" << m_strPath;
@@ -132,6 +132,11 @@ void VideoPlayer::stopPlay()
 // 回调函数
 static int interrupt_callback(void *p)
 {
+    if (!p) {
+        qCWarning(logPlayer) << "param is null";
+        return 1;
+    }
+
     VideoPlayer *r = (VideoPlayer *)p;
 
     //qCDebug(logPlayer) << r->path();
@@ -156,7 +161,8 @@ void VideoPlayer::run()
     AVCodecContext *pCodecCtx;
     AVCodec *pCodec;
     AVFrame *pFrame, *pFrameRGB;
-    AVPacket *packet;
+    //AVPacket *packet;
+    AVPacket pkt;
     uint8_t *out_buffer;
 
     static struct SwsContext *img_convert_ctx;
@@ -178,30 +184,43 @@ void VideoPlayer::run()
     qCDebug(logPlayer) << "called" << m_strPath;
 
 #if 1
-    pFormatCtx->interrupt_callback.callback = interrupt_callback;
-    pFormatCtx->interrupt_callback.opaque = this;
-    this->m_lasttime = time(NULL);
+   pFormatCtx->interrupt_callback.callback = interrupt_callback;
+   pFormatCtx->interrupt_callback.opaque = this;
+   this->m_lasttime = time(NULL);
 
     if (avformat_open_input(&pFormatCtx, url, NULL, &avdic) != 0) {
         qCCritical(logPlayer) << "can't open the file." << m_strPath;
+        avformat_free_context(pFormatCtx);
         return;
     }
 
-    qCDebug(logPlayer) << "open success" << m_strPath;
-
+#if 0
     pFormatCtx->interrupt_callback.callback = NULL;
     pFormatCtx->interrupt_callback.opaque = NULL;
 
-#else
+    avformat_close_input(&pFormatCtx);
     if (avformat_open_input(&pFormatCtx, url, NULL, &avdic) != 0) {
         qCCritical(logPlayer) << "can't open the file." << m_strPath;
+        avformat_free_context(pFormatCtx);
         return;
     }
 #endif
 
+#else
+    if (avformat_open_input(&pFormatCtx, url, NULL, &avdic) != 0) {
+        qCCritical(logPlayer) << "can't open the file." << m_strPath;
+        avformat_free_context(pFormatCtx);
+        return;
+    }
+#endif
+
+    qCDebug(logPlayer) << "open success" << m_strPath;
+
+     this->m_lasttime = time(NULL);
     if (avformat_find_stream_info(pFormatCtx, NULL) < 0) {
         qCCritical(logPlayer) << "Could't find stream infomation." << m_strPath;
         avformat_close_input(&pFormatCtx);
+         avformat_free_context(pFormatCtx);
         return;
     }
 
@@ -220,6 +239,7 @@ void VideoPlayer::run()
     if (videoStream == -1) {
         qCCritical(logPlayer) << "Didn't find a video stream." << m_strPath;
         avformat_close_input(&pFormatCtx);
+         avformat_free_context(pFormatCtx);
         return;
     }
 
@@ -235,6 +255,7 @@ void VideoPlayer::run()
     if (pCodec == NULL) {
         qCCritical(logPlayer) << "Codec not found." << m_strPath;
         avformat_close_input(&pFormatCtx);
+         avformat_free_context(pFormatCtx);
         return;
     }
 
@@ -242,6 +263,7 @@ void VideoPlayer::run()
     if (avcodec_open2(pCodecCtx, pCodec, NULL) < 0) {
         qCCritical(logPlayer) << "Could not open codec." << m_strPath;
         avformat_close_input(&pFormatCtx);
+         avformat_free_context(pFormatCtx);
         return;
     }
 
@@ -259,10 +281,13 @@ void VideoPlayer::run()
     avpicture_fill((AVPicture *) pFrameRGB, out_buffer, AV_PIX_FMT_RGB32,
             pCodecCtx->width, pCodecCtx->height);
 
-    int y_size = pCodecCtx->width * pCodecCtx->height;
+    //int y_size = pCodecCtx->width * pCodecCtx->height;
 
-    packet = (AVPacket *) malloc(sizeof(AVPacket)); //分配一个packet
-    av_new_packet(packet, y_size); //分配packet的数据
+    //packet = (AVPacket *) malloc(sizeof(AVPacket)); //分配一个packet
+    //av_new_packet(packet, y_size); //分配packet的数据
+    av_init_packet(&pkt);
+    pkt.data = NULL;
+    pkt.size = 0;
 
     //2017.8.1---lizhen
     av_dump_format(pFormatCtx, 0, url, 0); //输出视频信息
@@ -273,24 +298,24 @@ void VideoPlayer::run()
              << "width" << pCodecCtx->width
              << "height" << pCodecCtx->height;
 
-    this->m_lasttime = time(NULL);
+    //this->m_lasttime = time(NULL);
 
     while (!this->isInterruptionRequested())
     {
-        if (av_read_frame(pFormatCtx, packet) < 0)
+        this->m_lasttime = time(NULL);
+
+        if (av_read_frame(pFormatCtx, &pkt) < 0)
         {
             qCWarning(logPlayer)  << "read frame error." << m_strPath;
             break; //这里认为视频读取完了
         }
 
-        this->m_lasttime = time(NULL);
-
         if (this->isInterruptionRequested())
             break;
 
-        if (packet->stream_index == videoStream) {
+        if (pkt.stream_index == videoStream) {
 
-            ret = avcodec_decode_video2(pCodecCtx, pFrame, &got_picture,packet);
+            ret = avcodec_decode_video2(pCodecCtx, pFrame, &got_picture, &pkt);
 
             if (ret < 0) {
                 qCCritical(logPlayer) << "decode error." << m_strPath;
@@ -316,16 +341,21 @@ void VideoPlayer::run()
             }
         }
 
-        av_free_packet(packet); //释放资源,否则内存会一直上升
+        av_packet_unref(&pkt);
+
+        //av_free_packet(&pkt); //释放资源,否则内存会一直上升
 
         //2017.8.7---lizhen
-        msleep(0.05); //停一停  不然放的太快了
+        //msleep(0.05); //停一停  不然放的太快了
     }
+
+    av_packet_unref(&pkt);
 
     av_free(out_buffer);
     av_free(pFrameRGB);
     avcodec_close(pCodecCtx);
     avformat_close_input(&pFormatCtx);
+   avformat_free_context(pFormatCtx);
 
     qCDebug(logPlayer) << "done" << m_strPath;
 }
