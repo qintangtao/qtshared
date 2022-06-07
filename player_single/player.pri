@@ -9,16 +9,17 @@ HEADERS += \
 SOURCES += \
     $$PWD/BCDecoderPlayer.cpp
 
-LIBS += -L$$PWD/Player/lib/ -lhi_h264dec_w \
-        -L$$PWD/Player/lib/ -lavcodec \
-        -L$$PWD/Player/lib/ -lavdevice \
-        -L$$PWD/Player/lib/ -lavfilter \
-        -L$$PWD/Player/lib/ -lavformat \
-        -L$$PWD/Player/lib/ -lavutil \
-        -L$$PWD/Player/lib/ -lpostproc \
-        -L$$PWD/Player/lib/ -lswresample \
-        -L$$PWD/Player/lib/ -lswscale
+LIBS += -L$$PWD/../libs/ffmpeg/lib/ -lhi_h264dec_w \
+        -L$$PWD/../libs/ffmpeg/lib/ -lavcodec \
+        -L$$PWD/../libs/ffmpeg/lib/ -lavdevice \
+        -L$$PWD/../libs/ffmpeg/lib/ -lavfilter \
+        -L$$PWD/../libs/ffmpeg/lib/ -lavformat \
+        -L$$PWD/../libs/ffmpeg/lib/ -lavutil \
+        -L$$PWD/../libs/ffmpeg/lib/ -lpostproc \
+        -L$$PWD/../libs/ffmpeg/lib/ -lswresample \
+        -L$$PWD/../libs/ffmpeg/lib/ -lswscale
+        
 
-INCLUDEPATH += $$PWD/Player/include
+INCLUDEPATH += $$PWD/../libs/ffmpeg/include
 
 QT += widgets
